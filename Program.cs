@@ -8,6 +8,7 @@ builder.Services.AddDbContext<DeCaDbContext>(options => options.UseSqlServer(bui
 builder.Services.AddCors(options => {
     options.AddPolicy("AllowAll", policy => { policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader(); });
 });
+builder.Services.AddTransient<EmailSender>();
 
 var app = builder.Build();
 Console.WriteLine($"ENTORNO ACTUAL: {app.Environment.EnvironmentName}");

@@ -34,8 +34,7 @@ namespace DeCa.Migrations
 
                     b.Property<string>("Email")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<DateTime?>("LastLoginAt")
                         .HasColumnType("datetime2");
@@ -43,10 +42,11 @@ namespace DeCa.Migrations
                     b.Property<int>("LoginNumber")
                         .HasColumnType("int");
 
-                    b.Property<string>("Password")
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<DateTime?>("LoginTokenExpiresAt")
+                        .HasColumnType("datetime2");
 
-                    b.Property<string>("Token")
+                    b.Property<string>("LoginTokenHash")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");

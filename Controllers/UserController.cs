@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Identity.Data;
+using System.Security.Cryptography;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,9 +7,11 @@ using Microsoft.EntityFrameworkCore;
 public class UserController : ControllerBase
 {
     private readonly DeCaDbContext _context;
-     public UserController(DeCaDbContext context)
+    private readonly EmailSender _emailSender;
+     public UserController(DeCaDbContext context, EmailSender emailSender)
     {
-        _context = context;
+        _context     = context;
+        _emailSender = emailSender;
     }
 
     // http://localhost:5006/
@@ -45,42 +47,66 @@ public class UserController : ControllerBase
         });
     }
 
-    // http://localhost:5006/api/user/login?email=alexey@gmail.com&password=123456
+    // http://localhost:5006/api/user/login?email=alexey@gmail.com
     [HttpGet("login")]
-    public IActionResult Login(string email, string password){
+    public IActionResult Loginget(string email){
 
         return Ok(new {
             date = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
             info = "Login successful",
-            x = email,
-            y = password
+            x = email
         });
     }
 
     [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginRequest request)
+        public async Task<IActionResult> Login([FromForm] string email)
     {
-        string email = request.Email.Trim().ToLowerInvariant();
+        email        = email.Trim().ToLowerInvariant();
         var user     = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+        byte[] bytes = RandomNumberGenerator.GetBytes(32);
         
-        if (user != null) {
-           return Ok(new { message = "Usuario encontrado", id = user.Id, email= user.Email });
-        } else {
+        if (user == null) {
             user = new User {
                 Email = email,
-                Password = request.Password,
-                CreatedAt = DateTime.UtcNow,
-                LastLoginAt = DateTime.UtcNow,
+                CreatedAt = DateTime.Now,
+                LastLoginAt = DateTime.Now,
                 LoginNumber = 1
             };
             await _context.Users.AddAsync(user);
             await _context.SaveChangesAsync();
-            return Ok(new {
-                message = "Usuario creado",
-                id = user.Id,
-                email = user.Email,
-                createdAt = user.CreatedAt
-            });
+            user  = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
         }
+
+       
+        if(user != null)
+        {
+            string token = Convert.ToBase64String(bytes).Replace("+", "-").Replace("/", "_").Replace("=", "");
+            string link  = $"https://documento-deca-net.web.app/verify#token={token}";
+            
+            byte[] tokenBytes = System.Text.Encoding.UTF8.GetBytes(token);
+            byte[] hashBytes = SHA256.HashData(tokenBytes);
+            string tokenHash = Convert.ToBase64String(hashBytes);
+  
+            user.LoginTokenHash = tokenHash;
+            user.LastLoginAt = DateTime.Now;
+            user.LoginNumber = user.LoginNumber + 1;
+            user.LoginTokenExpiresAt = DateTime.UtcNow.AddDays(11);
+            await _context.SaveChangesAsync();
+            await _emailSender.SendLoginLinkAsync(email, link);
+
+            return Ok(new { message = "Correo Enviado", id = user.Id, email = user.Email });  
+        } else
+        {
+            return Ok(new { message = "ERROR", id = 0, email = email });
+        }
+
+        
+
     }
 }
+
+/*
+Task            representa una operación que puede terminar en el futuro.
+IActionResult   es una interfaz de ASP.NET Core que representa el resultado de una acción HTTP.
+LoginRequest    es una clase que representa los datos que recibes del cliente
+*/
