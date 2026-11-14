@@ -17,15 +17,9 @@ dotnet ef database update
 
 public
 Tc4?+9LxaB@8
+Tc4?+9LxaB@8
 */
 
-SELECT
-    TABLE_SCHEMA,
-    TABLE_NAME
-FROM INFORMATION_SCHEMA.TABLES
-WHERE TABLE_TYPE = 'BASE TABLE'
-ORDER BY TABLE_SCHEMA, TABLE_NAME
+select * 
+from users
 ;
-
-
-select * from users;
