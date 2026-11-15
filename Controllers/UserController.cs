@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-
+using DataClass; // esta en rojo
 
 [ApiController]
 [Route("api/[controller]")]
