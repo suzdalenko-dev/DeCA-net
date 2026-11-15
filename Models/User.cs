@@ -5,14 +5,11 @@ public class User
     [Required]
     [EmailAddress]
     public string Email { get; set; } = string.Empty;
-    [Required]
     public string? LoginTokenHash { get; set; }
     public DateTime? LoginTokenExpiresAt { get; set; }
     public DateTime? CreatedAt { get; set; }
     public DateTime? LastLoginAt { get; set; }
-    public int LoginNumber {get; set; } = 0;
-    public string? BearerTokenHash { get; set; }
-    public DateTime? BearerTokenExpiresAt { get; set; }
+    public int LoginNumber { get; set; } = 0;
 }
 
 /*

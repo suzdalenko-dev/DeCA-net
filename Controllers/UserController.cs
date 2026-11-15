@@ -93,6 +93,9 @@ public class UserController : ControllerBase
             byte[] hashBytes = SHA256.HashData(tokenBytes);
             string tokenHash = Convert.ToBase64String(hashBytes);
 
+            Console.WriteLine("tokenBytes="+string.Join(", ", tokenBytes));
+            Console.WriteLine("hashBytes=" +string.Join(", ", hashBytes));
+
             user.LoginTokenHash = tokenHash;
             user.LastLoginAt = DateTime.Now;
             user.LoginNumber = user.LoginNumber + 1;
@@ -110,60 +113,40 @@ public class UserController : ControllerBase
 
 
     [HttpPost("verify")]
-    public async Task<IActionResult> Verify([FromBody] VerifyRequest request) // DataClass en rojo
+    public async Task<IActionResult> Verify([FromBody] VerifyRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.Token))
-            return BadRequest(new { message = "Token no proporcionado" });
+        if (string.IsNullOrWhiteSpace(request.Token)) return BadRequest(new { message = "Token no proporcionado" });
 
-        // Calculamos el hash del token recibido por correo.
+        // string token  => bytes array
         byte[] tokenBytes = System.Text.Encoding.UTF8.GetBytes(request.Token);
+        // bytes array  => has bytes array 32 bytes
         byte[] hashBytes = SHA256.HashData(tokenBytes);
+        // bytes hash array =>
         string tokenHash = Convert.ToBase64String(hashBytes);
 
-        // Buscamos al usuario por el hash.
-        var user = await _context.Users
-            .FirstOrDefaultAsync(u => u.LoginTokenHash == tokenHash);
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.LoginTokenHash == tokenHash);
+        if (user == null) return Unauthorized(new { message = "Token inválido" });
 
-        if (user == null)
-            return Unauthorized(new { message = "Token inválido" });
-
-        // Comprobamos que el enlace no haya caducado.
-        if (user.LoginTokenExpiresAt == null ||
-            user.LoginTokenExpiresAt <= DateTime.UtcNow)
-        {
+        if (user.LoginTokenExpiresAt == null || user.LoginTokenExpiresAt <= DateTime.Now) {
             return Unauthorized(new { message = "El enlace ha caducado" });
         }
 
-        // Generamos un nuevo Bearer Token.
         byte[] bearerBytes = RandomNumberGenerator.GetBytes(32);
 
-        string bearerToken = Convert.ToBase64String(bearerBytes)
-            .Replace("+", "-")
-            .Replace("/", "_")
-            .Replace("=", "");
+        string bearerToken = Convert.ToBase64String(bearerBytes).Replace("+", "-").Replace("/", "_").Replace("=", "");
 
-        // Guardamos únicamente el hash del Bearer Token.
-        byte[] bearerHashBytes = SHA256.HashData(
-            System.Text.Encoding.UTF8.GetBytes(bearerToken)
-        );
+        byte[] bearerHashBytes = SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(bearerToken));
 
-        user.BearerTokenHash = Convert.ToBase64String(bearerHashBytes);
-        user.BearerTokenExpiresAt = DateTime.UtcNow.AddDays(30);
-
-        // El enlace de correo es de un solo uso.
         user.LoginTokenHash = null;
         user.LoginTokenExpiresAt = null;
-
         await _context.SaveChangesAsync();
 
-        // El token original se entrega al navegador una sola vez.
         return Ok(new
         {
             message = "Autenticación correcta",
             id = user.Id,
             email = user.Email,
             accessToken = bearerToken,
-            expiresAt = user.BearerTokenExpiresAt
         });
     }
 
