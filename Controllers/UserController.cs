@@ -1,7 +1,6 @@
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using DataClass; // esta en rojo
 
 [ApiController]
 [Route("api/[controller]")]
@@ -111,7 +110,7 @@ public class UserController : ControllerBase
 
 
     [HttpPost("verify")]
-    public async Task<IActionResult> Verify([FromBody] DataClass.VerifyRequest request) // DataClass en rojo
+    public async Task<IActionResult> Verify([FromBody] VerifyRequest request) // DataClass en rojo
     {
         if (string.IsNullOrWhiteSpace(request.Token))
             return BadRequest(new { message = "Token no proporcionado" });
