@@ -2,21 +2,23 @@ using System.Security.Cryptography;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
+
 [ApiController]
 [Route("api/[controller]")]
 public class UserController : ControllerBase
 {
     private readonly DeCaDbContext _context;
     private readonly EmailSender _emailSender;
-     public UserController(DeCaDbContext context, EmailSender emailSender)
+    public UserController(DeCaDbContext context, EmailSender emailSender)
     {
-        _context     = context;
+        _context = context;
         _emailSender = emailSender;
     }
 
     // http://localhost:5006/
     [HttpGet("/")]
-    public async Task<IActionResult> Index(){
+    public async Task<IActionResult> Index()
+    {
         byte edad = 44;
         short temperatura = 25;
         int cantidad = 1500;
@@ -34,12 +36,13 @@ public class UserController : ControllerBase
             .AsNoTracking()
             .Where(u => u.Id > 0)
             .OrderBy(u => u.Id)
-            .Select(u => new {u.Id, u.Email, u.CreatedAt, u.LastLoginAt })
+            .Select(u => new { u.Id, u.Email, u.CreatedAt, u.LastLoginAt })
             .ToListAsync();
-        
+
         bool connected = await _context.Database.CanConnectAsync();
-        
-        return Ok(new { 
+
+        return Ok(new
+        {
             date = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
             info = "Alexey Suzdalenko",
             users = users,
@@ -49,9 +52,11 @@ public class UserController : ControllerBase
 
     // http://localhost:5006/api/user/login?email=alexey@gmail.com
     [HttpGet("login")]
-    public IActionResult Loginget(string email){
+    public IActionResult Loginget(string email)
+    {
 
-        return Ok(new {
+        return Ok(new
+        {
             date = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
             info = "Login successful",
             x = email
@@ -59,14 +64,16 @@ public class UserController : ControllerBase
     }
 
     [HttpPost("login")]
-        public async Task<IActionResult> Login([FromForm] string email)
+    public async Task<IActionResult> Login([FromForm] string email)
     {
-        email        = email.Trim().ToLowerInvariant();
-        var user     = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+        email = email.Trim().ToLowerInvariant();
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
         byte[] bytes = RandomNumberGenerator.GetBytes(32);
-        
-        if (user == null) {
-            user = new User {
+
+        if (user == null)
+        {
+            user = new User
+            {
                 Email = email,
                 CreatedAt = DateTime.Now,
                 LastLoginAt = DateTime.Now,
@@ -74,19 +81,19 @@ public class UserController : ControllerBase
             };
             await _context.Users.AddAsync(user);
             await _context.SaveChangesAsync();
-            user  = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+            user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
         }
 
-       
-        if(user != null)
+
+        if (user != null)
         {
             string token = Convert.ToBase64String(bytes).Replace("+", "-").Replace("/", "_").Replace("=", "");
-            string link  = $"https://documento-deca-net.web.app/verify#token={token}";
-            
+            string link = $"https://documento-deca-net.web.app/verify#token={token}";
+
             byte[] tokenBytes = System.Text.Encoding.UTF8.GetBytes(token);
             byte[] hashBytes = SHA256.HashData(tokenBytes);
             string tokenHash = Convert.ToBase64String(hashBytes);
-  
+
             user.LoginTokenHash = tokenHash;
             user.LastLoginAt = DateTime.Now;
             user.LoginNumber = user.LoginNumber + 1;
@@ -94,14 +101,74 @@ public class UserController : ControllerBase
             await _context.SaveChangesAsync();
             await _emailSender.SendLoginLinkAsync(email, link);
 
-            return Ok(new { message = "Correo Enviado", id = user.Id, email = user.Email });  
-        } else
+            return Ok(new { message = "Correo Enviado", id = user.Id, email = user.Email });
+        }
+        else
         {
             return Ok(new { message = "ERROR", id = 0, email = email });
         }
     }
 
-    
+
+    [HttpPost("verify")]
+    public async Task<IActionResult> Verify([FromBody] VerifyRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Token))
+            return BadRequest(new { message = "Token no proporcionado" });
+
+        // Calculamos el hash del token recibido por correo.
+        byte[] tokenBytes = System.Text.Encoding.UTF8.GetBytes(request.Token);
+        byte[] hashBytes = SHA256.HashData(tokenBytes);
+        string tokenHash = Convert.ToBase64String(hashBytes);
+
+        // Buscamos al usuario por el hash.
+        var user = await _context.Users
+            .FirstOrDefaultAsync(u => u.LoginTokenHash == tokenHash);
+
+        if (user == null)
+            return Unauthorized(new { message = "Token inválido" });
+
+        // Comprobamos que el enlace no haya caducado.
+        if (user.LoginTokenExpiresAt == null ||
+            user.LoginTokenExpiresAt <= DateTime.UtcNow)
+        {
+            return Unauthorized(new { message = "El enlace ha caducado" });
+        }
+
+        // Generamos un nuevo Bearer Token.
+        byte[] bearerBytes = RandomNumberGenerator.GetBytes(32);
+
+        string bearerToken = Convert.ToBase64String(bearerBytes)
+            .Replace("+", "-")
+            .Replace("/", "_")
+            .Replace("=", "");
+
+        // Guardamos únicamente el hash del Bearer Token.
+        byte[] bearerHashBytes = SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(bearerToken)
+        );
+
+        user.BearerTokenHash = Convert.ToBase64String(bearerHashBytes);
+        user.BearerTokenExpiresAt = DateTime.UtcNow.AddDays(30);
+
+        // El enlace de correo es de un solo uso.
+        user.LoginTokenHash = null;
+        user.LoginTokenExpiresAt = null;
+
+        await _context.SaveChangesAsync();
+
+        // El token original se entrega al navegador una sola vez.
+        return Ok(new
+        {
+            message = "Autenticación correcta",
+            id = user.Id,
+            email = user.Email,
+            accessToken = bearerToken,
+            expiresAt = user.BearerTokenExpiresAt
+        });
+    }
+
+
 }
 
 /*
