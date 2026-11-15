@@ -11,6 +11,8 @@ public class User
     public DateTime? CreatedAt { get; set; }
     public DateTime? LastLoginAt { get; set; }
     public int LoginNumber {get; set; } = 0;
+    public string? BearerTokenHash { get; set; }
+    public DateTime? BearerTokenExpiresAt { get; set; }
 }
 
 /*
