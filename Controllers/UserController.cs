@@ -99,10 +99,9 @@ public class UserController : ControllerBase
         {
             return Ok(new { message = "ERROR", id = 0, email = email });
         }
-
-        
-
     }
+
+    
 }
 
 /*
