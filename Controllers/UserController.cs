@@ -81,7 +81,7 @@ public class UserController : ControllerBase
         if(user != null)
         {
             string token = Convert.ToBase64String(bytes).Replace("+", "-").Replace("/", "_").Replace("=", "");
-            string link  = $"https://documento-deca-net.web.app/verify#token={token}";
+            string link  = $"https://documento-deca-net.web.app/#token={token}";
             
             byte[] tokenBytes = System.Text.Encoding.UTF8.GetBytes(token);
             byte[] hashBytes = SHA256.HashData(tokenBytes);
