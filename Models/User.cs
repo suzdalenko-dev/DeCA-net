@@ -6,7 +6,7 @@ public class User
     [EmailAddress]
     public string Email { get; set; } = string.Empty;
     [Required]
-    public string LoginTokenHash { get; set; }
+    public string? LoginTokenHash { get; set; }
     public DateTime? LoginTokenExpiresAt { get; set; }
     public DateTime? CreatedAt { get; set; }
     public DateTime? LastLoginAt { get; set; }

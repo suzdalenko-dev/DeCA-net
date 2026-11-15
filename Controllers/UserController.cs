@@ -111,7 +111,7 @@ public class UserController : ControllerBase
 
 
     [HttpPost("verify")]
-    public async Task<IActionResult> Verify([FromBody] VerifyRequest request)
+    public async Task<IActionResult> Verify([FromBody] DataClass.VerifyRequest request) // DataClass en rojo
     {
         if (string.IsNullOrWhiteSpace(request.Token))
             return BadRequest(new { message = "Token no proporcionado" });
